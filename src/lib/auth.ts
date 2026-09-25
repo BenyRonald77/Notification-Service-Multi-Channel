@@ -40,3 +40,11 @@ export async function authenticateByApiKey(apiKey: string | null) {
   if (!apiKey) return null;
   return prisma.user.findUnique({ where: { apiKey } });
 }
+
+export async function authenticateRequest(request: Request) {
+  const apiKey = request.headers.get("x-api-key");
+  if (apiKey) {
+    return authenticateByApiKey(apiKey);
+  }
+  return requireUser();
+}
