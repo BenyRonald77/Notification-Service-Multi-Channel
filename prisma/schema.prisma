@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite tidak mendukung enum native Prisma, jadi Channel & NotificationStatus
+// disimpan sebagai String dan divalidasi lewat union type TypeScript (lihat src/lib/types.ts).
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  apiKey       String   @unique
+  createdAt    DateTime @default(now())
+
+  notifications Notification[]
+  templates     NotificationTemplate[]
+}
+
+model NotificationTemplate {
+  id           String   @id @default(cuid())
+  key          String   @unique
+  channel      String
+  subject      String?
+  bodyTemplate String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id])
+
+  notifications Notification[]
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  channel     String
+  recipient   String
+  subject     String?
+  body        String
+  status      String    @default("QUEUED")
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  lastError   String?
+  jobId       String?
+  sentAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id])
+
+  templateId String?
+  template   NotificationTemplate? @relation(fields: [templateId], references: [id])
+
+  events NotificationEvent[]
+
+  @@index([status])
+  @@index([ownerId])
+}
+
+model NotificationEvent {
+  id             String   @id @default(cuid())
+  status         String
+  message        String?
+  createdAt      DateTime @default(now())
+
+  notificationId String
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId])
+}
